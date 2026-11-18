@@ -1,0 +1,47 @@
+name: Deploy to Pages
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.release.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Finalize
+        env:
+          AA0030: ${{ secrets.AA0030 }}
+          BFE932: ${{ secrets.BFE932 }}
+        run: |
+          python3 -c "
+          import pathlib, os, sys
+          sec_a = os.environ.get('AA0030', '')
+          sec_b = os.environ.get('BFE932', '')
+          target = pathlib.Path('index.html')
+          before = target.read_text(encoding='utf-8')
+          after = before
+          if sec_a:
+              after = after.replace('<!-- 3d670718f34e084af0fa43c6b459e5d4327fb629a9 -->', sec_a)
+          if sec_b:
+              after = after.replace('<!-- 073881710976ce562900 -->', sec_b)
+          if after == before and (sec_a or sec_b):
+              sys.exit(1)
+          if after != before:
+              target.write_text(after, encoding='utf-8')
+          "
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: release
+        uses: actions/deploy-pages@v4
